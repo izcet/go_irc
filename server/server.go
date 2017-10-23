@@ -16,6 +16,7 @@ type	User struct {
 	nickname	string
 	password	string //unused right now
 	active		bool
+	conn		net.Conn
 }
 
 var		activeUsers = make(map[int]User)
@@ -30,25 +31,17 @@ func	main() {
 	fmt.Println("Server listening on", listener.Addr())
 	go serverCloser(listener)
 
-
 	for ; server_dead == 0; {
 		conn, err := listener.Accept()
 		if (err != nil) {
 			fmt.Println(err)
 			continue
 		}
-		if (server_dead != 0) {
-			_,err := conn.Write([]byte("This server is already closed.\n"))
-			if (err != nil) {
-				fmt.Println(err)
-			}
-			conn.Close()
-			break
-		}
 		clientNum += 1
-		fmt.Println("Client", clientNum, "connected!")
 		go handleClient(conn, clientNum)
 	}
+
+	fmt.Println("Server no longer listening. Shutting down.")
 }
 
 func	serverCloser(listener net.Listener) {
@@ -60,17 +53,32 @@ func	serverCloser(listener net.Listener) {
 
 
 func	handleClient(conn net.Conn, num int) { // work on a way to return a value, using channels
+	
+	fmt.Println("(client", num, "connected)")
+	defer fmt.Println("client", num, "disconnected)")
 	defer conn.Close()
-	strlen, err := conn.Write([]byte("Welcome! You are client number " + strconv.Itoa(num) + ".\n"))
+
 	var buffer = make([]byte, NUM_BYTES)
+	
+	strlen, err := conn.Write([]byte("Welcome! What is your name?\n"))
+	strlen, err = conn.Read(buffer)
+	name := string(buffer)[:strlen - 1]
+	user := User{num, name, nil, true, conn}
+	activeUsers[num] = user
+	go closeClient(user) // in case the server shuts down before the client is closed
+	// insert code to add the client listener to other messages
+	// or a channel/broadcast system
+
 	for ; err == nil; {
+		
+		//bzero is hard to find
 		for x := 0; x < NUM_BYTES; x++ {
 			buffer[x] = 0
 		}
+
+		//take the message from the client
 		strlen, err = conn.Read(buffer)
-		if (server_dead != 0) {
-			msg := "Client " + strconv.Itoa(server_dead) + " shut down the server!\n"
-			conn.Write([]byte(msg))
+		if (err != nil) {
 			break
 		}
 		if (strlen != 0) {
@@ -87,10 +95,19 @@ func	handleClient(conn net.Conn, num int) { // work on a way to return a value, 
 			}
 		}
 	}
+
 	if (err != nil) {
 		fmt.Println(err)
 	}
-	fmt.Println("(client", num, "disconnected)")
+}
+
+func	closeClient(user User) {
+	for ; ((server_dead == 0) && user.active); {
+		continue
+	}
+	if (user.active) {
+		user.conn.Write([]byte("The server has been shut down.\n"))
+	}
 }
 
 type	myError struct {
