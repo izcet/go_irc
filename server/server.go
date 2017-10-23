@@ -11,16 +11,26 @@ const	NUM_BYTES = 512
 
 var		server_dead int
 
+type	User struct {
+	IDNumber	int
+	nickname	string
+	password	string //unused right now
+	active		bool
+}
+
+var		activeUsers = make(map[int]User)
+
 func	main() {
 	clientNum := 0
 	listener, err := net.Listen("tcp", ":4444")
 	if (err != nil) {
 		panic(err)
 	}
-	defer listener.Close()
-
 	server_dead = 0
 	fmt.Println("Server listening on", listener.Addr())
+	go serverCloser(listener)
+
+
 	for ; server_dead == 0; {
 		conn, err := listener.Accept()
 		if (err != nil) {
@@ -40,6 +50,14 @@ func	main() {
 		go handleClient(conn, clientNum)
 	}
 }
+
+func	serverCloser(listener net.Listener) {
+	for ; server_dead == 0 ; {
+		continue
+	}
+	listener.Close()
+}
+
 
 func	handleClient(conn net.Conn, num int) { // work on a way to return a value, using channels
 	defer conn.Close()
