@@ -55,17 +55,26 @@ func	serverCloser(listener net.Listener) {
 func	handleClient(conn net.Conn, num int) { // work on a way to return a value, using channels
 	
 	fmt.Println("(client", num, "connected)")
-	defer fmt.Println("client", num, "disconnected)")
+	defer fmt.Println("(client", num, "disconnected)")
 	defer conn.Close()
 
 	var buffer = make([]byte, NUM_BYTES)
 	
 	strlen, err := conn.Write([]byte("Welcome! What is your name?\n"))
 	strlen, err = conn.Read(buffer)
+	if (err != nil) {
+		fmt.Println("(client", num, "fucked up typing their own name)")
+		return 
+	}
 	name := string(buffer)[:strlen - 1]
-	user := User{num, name, nil, true, conn}
+	
+	user := User{num, name, strconv.Itoa(num), true, conn} // password doesn't matter
+	// I literally just set this to cancel the compiler warning about unused strconv
+
 	activeUsers[num] = user
+	
 	go closeClient(user) // in case the server shuts down before the client is closed
+	
 	// insert code to add the client listener to other messages
 	// or a channel/broadcast system
 
