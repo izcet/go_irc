@@ -38,9 +38,10 @@ func	handleClient(conn net.Conn, num int) {
 	}
 	name := string(buffer)[:strlen - 1]
 
-	user := User{num, name, "", true, conn, make(chan *Message, 512)} //set up a user with a name and a pointer to a message struct channel
+	//set up a user with a name and a pointer to a message struct channel
+	user := User{num, name, "", true, conn, make(chan *Message, 512)}
 
-	activeUsers[num] = user//keep track of users in global
+	activeUsers[num] = user //keep track of users in global
 	go clientListen(user)
 	makeMessage(0, string(user.nickname + " has joined the server"))
 	defer ClientClose(user) // in case the server shuts down before the client is closed
@@ -101,10 +102,12 @@ func	ClientClose(user User) {
 }
 
 func	makeMessage(user int, text string) {
+	fmt.Println("[", user, ",", text)
 	msg := &Message{activeUsers[user], nil, text}
 	select {
 	case serverMessages <-msg:
-		fmt.Println("Sent message to server")
+		return
+		// fmt.Println("Sent message to server")
 	default:
 		fmt.Println("No message sent")
 	}

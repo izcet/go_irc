@@ -11,7 +11,7 @@ const	NUM_BYTES = 512 //maximum size of message
 
 var		server_dead int
 
-var		activeUsers = make(map[int]User) //global map for something with users???
+var		activeUsers = make(map[int]User) //global map of user structs
 var		serverMessages = make(chan *Message, 500) //global buffered *Message channel ???
 
 func	main() {
@@ -23,13 +23,13 @@ func	main() {
 	if (err != nil) { //maybe the port is taked already
 		panic(err)
 	}
-	defer listener.Close()//close the listener after it's use
-	fmt.Println("Server listening on", listener.Addr())//helps to know the address to tell other people
+	defer listener.Close() //close the listener after it's use
+	fmt.Println("Server listening on", listener.Addr()) //helps to know the address to tell other people
 
 	go serverDistributeMessages() //the messages need to find their way around the network
 
 	//begin main loop
-	server_dead = 0//why ?????
+	server_dead = 0 //why ????? // to keep track of who killed the world
 	for ; server_dead == 0; {
 		conn, err := listener.Accept()
 		if (err != nil) {
@@ -37,20 +37,19 @@ func	main() {
 			continue
 		}
 		clientNum += 1
-		go handleClient(conn, clientNum)//need concurrent routines for each client
+		go handleClient(conn, clientNum) //need concurrent routines for each client
 	}
 
 	fmt.Println("Server no longer listening. Shutting down.")
 }
 
 func	serverDistributeMessages() {
-	for ; server_dead == 0 ; {//main loop again
+	for ; server_dead == 0 ; { //main loop again
 		select {
 		case msg := <-serverMessages: //if a message appears it has to find it's way to everyone it applies to
-			fmt.Println("Server recieved message")
-			for num, user := range activeUsers {
+			for _, user := range activeUsers {
 				//newMsg := *msg
-				fmt.Println(num)//
+//				fmt.Println(num)//
 				if (msg.sender.IDNumber != user.IDNumber) && (user.IDNumber != 0) && (user.active) {// user cant send themselves a message otherwise put it in everyones mailbox
 					user.inbox <-msg //newMsg
 				}
