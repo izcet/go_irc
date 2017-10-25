@@ -5,20 +5,6 @@ import(
 	"fmt"
 )
 
-type	Message struct {
-	Sender *Client
-	Reciever *Client
-	Text *string
-}
-
-
-type Server struct {
-	Clients []*Client
-	Connection chan net.Conn
-	Incoming chan *Message
-	Outgoing chan *Message
-}
-
 func (serv *Server) addClient(conn net.Conn) {
 	serv.Clients = append(serv.Clients, NewClient(conn))
 }
