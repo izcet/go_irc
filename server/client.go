@@ -37,6 +37,11 @@ func	handleClient(conn net.Conn, num int) {
 		return
 	}
 	name := string(buffer)[:strlen - 1]
+	strlen, err = conn.Write([]byte("Welcome [" + name + "], type /help for a list of commands.\n"))
+	if (err != nil) {
+		fmt.Println("(client", num, "didn't get the welcome message)")
+		return
+	}
 
 	//set up a user with a name and a pointer to a message struct channel
 	user := User{num, name, "", true, conn, make(chan *Message, 512)}
@@ -58,13 +63,21 @@ func	handleClient(conn net.Conn, num int) {
 		if (err != nil) {
 			break
 		}
-		if (strlen != 0) {
+		if (strlen != 0) && (strlen < 512) {
 			str := string(buffer)
 			str = str[:strlen - 1]
-			if (str == "stop") {
+			if (str == "/stop") {
 				server_dead = 1
 				makeMessage(0, string(user.nickname + " shut down the server"))
 				break
+			} else if (str == "/help") {
+				sendToClient(conn, "== COMMAND HELP ==\n/help | get help, because you need it\n/kick <name> | kick a person, because they need it\n/list | get a list of online users, so you know who to harass\n/nick <name> | change your name, because your parents weren't clever enough\n/stop | kill the server, because you need to stop\n== NO MORE HELP ==\n")
+			} else if (str == "/list") {
+				sendToClient(conn, "(a listing of online users)\n")
+			} else if (len(str) > 5) && (str[0:6] == "/nick ") {
+				sendToClient(conn, "(nickname changed to " + str[6:] + ")\n")
+			} else if (len(str) > 5) && (str[0:6] == "/kick ") {
+				sendToClient(conn, "(kicked user " + str[6:] + ")\n")			
 			} else {
 				makeMessage(num, str)
 			}
@@ -94,6 +107,10 @@ func	clientListen(user User) {
 	}
 }
 
+func	sendToClient(conn net.Conn, str string) {
+	conn.Write([]byte(str))
+}
+
 func	ClientClose(user User) {
 	if (user.active) {
 		user.conn.Write([]byte("The server has been shut down.\n"))
@@ -102,7 +119,7 @@ func	ClientClose(user User) {
 }
 
 func	makeMessage(user int, text string) {
-	fmt.Println("[", user, ",", text)
+	fmt.Println("[", user, "] [", text, "]")
 	msg := &Message{activeUsers[user], nil, text}
 	select {
 	case serverMessages <-msg:
