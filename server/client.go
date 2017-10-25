@@ -3,7 +3,7 @@ package main
 import (
 	"net"
 	"fmt"
-	"strings"
+//	"strings"
 //	"strconv"
 )
 
@@ -25,10 +25,10 @@ type	Message struct {
 func	handleClient(conn net.Conn, num int) {
 
 	fmt.Println("(client", num, "connected)")
-	defer fmt.Println("(client", num, "disconnected)")
-	defer conn.Close()
+	defer fmt.Println("(client", num, "disconnected)")//nice logging messages
+	defer conn.Close()//nice cleanup
 
-	var buffer = make([]byte, NUM_BYTES)
+	var buffer = make([]byte, NUM_BYTES)//
 
 	strlen, err := conn.Write([]byte("Welcome! What is your name?\n"))
 	strlen, err = conn.Read(buffer)
@@ -38,18 +38,18 @@ func	handleClient(conn net.Conn, num int) {
 	}
 	name := string(buffer)[:strlen - 1]
 
-	user := User{num, name, "", true, conn, make(chan *Message, 512)} // password doesn't matter
+	user := User{num, name, "", true, conn, make(chan *Message, 512)} //set up a user with a name and a pointer to a message struct channel
 
-	activeUsers[num] = user
+	activeUsers[num] = user//keep track of users in global
 	go clientListen(user)
 	makeMessage(0, string(user.nickname + " has joined the server"))
-	go deferClientClose(user) // in case the server shuts down before the client is closed
+	defer ClientClose(user) // in case the server shuts down before the client is closed
 
 	for ; err == nil; {
 
 		//bzero is hard to find
-		for x := 0; x < NUM_BYTES; x++ {
-			buffer[x] = 0
+		for i, _ := range buffer {
+			buffer[i] = 0
 		}
 
 		//take the message from the client
@@ -60,8 +60,8 @@ func	handleClient(conn net.Conn, num int) {
 		if (strlen != 0) {
 			str := string(buffer)
 			str = str[:strlen - 1]
-			if (strings.Compare(str, "stop") == 0) {
-				server_dead = num
+			if (str == "stop") {
+				server_dead = 1
 				makeMessage(0, string(user.nickname + " shut down the server"))
 				break
 			} else {
@@ -76,23 +76,24 @@ func	handleClient(conn net.Conn, num int) {
 
 func	clientListen(user User) {
 	for ; user.active; {
-		msg := <-user.inbox
-		if (user.active) {
-			var str string
-			if (msg.sender.IDNumber == 0) {
-				str = "<" + msg.text + ">\n"
-			} else {
+		select {
+		case msg := <-user.inbox:
+			if (user.active) {
+				var str string
+				if (msg.sender.IDNumber == 0) {
+					str = "<" + msg.text + ">\n"
+				} else {
 				str = "[" + msg.sender.nickname + "] " + msg.text + "\n"
-			}
-			user.conn.Write([]byte(str))
+				}
+				user.conn.Write([]byte(str))
+			}	
+		default:
+			continue
 		}
 	}
 }
 
-func	deferClientClose(user User) {
-	for ; ((server_dead == 0) && user.active); {
-		continue
-	}
+func	ClientClose(user User) {
 	if (user.active) {
 		user.conn.Write([]byte("The server has been shut down.\n"))
 		user.active = false
@@ -100,9 +101,9 @@ func	deferClientClose(user User) {
 }
 
 func	makeMessage(user int, text string) {
-	msg := Message{activeUsers[user], nil, text}
+	msg := &Message{activeUsers[user], nil, text}
 	select {
-	case serverMessages <-&msg:
+	case serverMessages <-msg:
 		fmt.Println("Sent message to server")
 	default:
 		fmt.Println("No message sent")
