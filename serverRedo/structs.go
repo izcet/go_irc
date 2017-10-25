@@ -21,4 +21,5 @@ type	Server struct {
 type	Client struct {
 	nickname	string
 	password	string
+	connection	net.Conn
 }
