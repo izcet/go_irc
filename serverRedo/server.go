@@ -17,7 +17,7 @@ func (serv *Server) addClient(conn net.Conn) {
 
 func (serv *Server) sendMessage(msg *Message) {
 	for i, user := range serv.Clients {
-			user.Incoming <- msg
+			user.Outgoing <- msg
 	}
 }
 
