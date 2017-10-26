@@ -113,7 +113,7 @@ func	sendToClient(conn net.Conn, str string) {
 
 func	ClientClose(user User) {
 	if (user.active) {
-		user.conn.Write([]byte("The server has been shut down.\n"))
+		user.conn.Write([]byte("The server hias been shut down.\n"))
 		user.active = false
 	}
 }
