@@ -6,13 +6,15 @@ import(
 )
 
 func (serv *Server) addClient(conn net.Conn) {
-	client, err := newClient(conn)
+	client, err := newClient(conn, serv)
 	if (err != nil) {
 		// just in case creating a client causes an error
 		// client should be nil
 		fmt.Println(err)
 	}
-	serv.Clients = append(serv.Clients, client)
+	if (client != nil) {
+		serv.Clients = append(serv.Clients, client)
+	}
 }
 
 func (serv *Server) sendMessage(msg *Message) {
