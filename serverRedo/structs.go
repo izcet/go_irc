@@ -30,6 +30,8 @@ type	Message struct {
 	Reciever	*Client // should be changed from a single client to a ChatRoom eventually
 	// unless we want to keep it, and figure out how to differentiate direct messages and global
 
+	whisper		bool
+
 	Text		*string // does this need to be a pointer?
 }
 

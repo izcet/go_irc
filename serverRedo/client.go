@@ -56,7 +56,18 @@ func	setClientOutbound(client *Client) {
 }
 
 func	handleClientInput(client *Client, input string) {
+	// string is 512 bytes or less
+	// probably newline terminated
 
+}
+
+func	sendMessageToClient(msg *Message, client *Client) error {
+	str := "[" + string(msg.Sender.nickname)
+	if (msg.whisper) {
+		str = str + " whispered to you"
+	}
+	str = str + "] " + msg.Text
+	return (sendMessageAlongConnection(str, client.connection))
 }
 
 func	sendMessageAlongConnection(msg string, conn net.Conn) error {
