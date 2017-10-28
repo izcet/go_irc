@@ -5,36 +5,6 @@ import(
 	//"fmt"
 )
 
-type	ChatRoom struct {
-	// acts like an IRC or Slack channel
-	// not to be confused with channels (the Go data structure)
-
-	Clients		[]*Client
-	// all the users currently in the channel
-
-	Admin		*Client
-	// the moderator of the channel
-
-	name		string
-	description	string
-	// pretty self explanatory
-
-	// something else here for properties
-	// like invite only, etc.
-}
-
-type	Message struct {
-
-	Sender		*Client
-
-	Reciever	*Client // should be changed from a single client to a ChatRoom eventually
-	// unless we want to keep it, and figure out how to differentiate direct messages and global
-
-	whisper		bool
-
-	Text		*string // does this need to be a pointer?
-}
-
 type	Server struct {
 
 	Clients		[]*Client
@@ -73,4 +43,34 @@ type	Client struct {
 	Outgoing	chan *Message
 	// data to be sent to the client along the channel
 	// messages sent TO the user
+}
+
+type	Message struct {
+
+	Sender		*Client
+
+	Reciever	*Client // should be changed from a single client to a ChatRoom eventually
+	// unless we want to keep it, and figure out how to differentiate direct messages and global
+
+	whisper		bool
+
+	Text		*string // does this need to be a pointer?
+}
+
+type	ChatRoom struct {
+	// acts like an IRC or Slack channel
+	// not to be confused with channels (the Go data structure)
+
+	Clients		[]*Client
+	// all the users currently in the channel
+
+	Admin		*Client
+	// the moderator of the channel
+
+	name		string
+	description	string
+	// pretty self explanatory
+
+	// something else here for properties
+	// like invite only, etc.
 }

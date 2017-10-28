@@ -30,12 +30,14 @@ func	setClientInbound(client *Client) {
 	for ; err == nil; {
 		select {
 		case strlen, err = conn.Read(buffer):
-			if (strlen > 512) {
+			if (strlen <= 1) {
+				err = sendMessageAlongConnection("Error: Message length was too short.\n", client.connection)
+			} else if (strlen > 512) {
 				err = sendMessageAlongConnection("ERROR: Message length was too long.\n", client.connection)
 			} else if (err != nil) {
 				fmt.Println(err)
 			} else {
-				handleClientInput(client, string(buffer))
+				handleClientInput(client, string(buffer)[0:len(input) - 1], strlen - 1)
 			}
 		default:
 			continue
@@ -55,10 +57,17 @@ func	setClientOutbound(client *Client) {
 	}
 }
 
-func	handleClientInput(client *Client, input string) {
-	// string is 512 bytes or less
-	// probably newline terminated
-
+func	handleClientInput(client *Client, input string, strlen int) {
+	err := error(nil)
+	if (input[0] == '/') {
+		err = callCommand(client, input, strlen)
+	} else {
+		msg := makeMessage(client, input)
+		client.Incoming <-msg
+	}
+	if (err != nil) {
+		fmt.Println(err)
+	}
 }
 
 func	sendMessageToClient(msg *Message, client *Client) error {
@@ -70,7 +79,17 @@ func	sendMessageToClient(msg *Message, client *Client) error {
 	return (sendMessageAlongConnection(str, client.connection))
 }
 
+func	makeMessage(client *Client, input string) *Message {
+
+}
+
 func	sendMessageAlongConnection(msg string, conn net.Conn) error {
 	_, err := conn.Write([]byte(msg))
 	return (err)
 }
+
+func	callCommand(client *client, input string, strlen int) error {
+	err := sendMessageAlongConnection("That's a command!\n", client.connection)
+	return (err)
+}
+
