@@ -77,7 +77,7 @@ func	handleClient(conn net.Conn, num int) {
 			} else if (len(str) > 5) && (str[0:6] == "/nick ") {
 				sendToClient(conn, "(nickname changed to " + str[6:] + ")\n")
 			} else if (len(str) > 5) && (str[0:6] == "/kick ") {
-				sendToClient(conn, "(kicked user " + str[6:] + ")\n")			
+				sendToClient(conn, "(kicked user " + str[6:] + ")\n")
 			} else {
 				makeMessage(num, str)
 			}
@@ -100,7 +100,7 @@ func	clientListen(user User) {
 				str = "[" + msg.sender.nickname + "] " + msg.text + "\n"
 				}
 				user.conn.Write([]byte(str))
-			}	
+			}
 		default:
 			continue
 		}
