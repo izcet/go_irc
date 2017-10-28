@@ -28,8 +28,7 @@ func	setClientInbound(client *Client) {
 	buffer := make([]byte, 512)
 
 	for ; err == nil; {
-		select {
-		case strlen, err = conn.Read(buffer):
+		strlen, err = conn.Read(buffer)
 			if (strlen <= 1) {
 				err = sendMessageAlongConnection("Error: Message length was too short.\n", client.connection)
 			} else if (strlen > 512) {
@@ -39,8 +38,6 @@ func	setClientInbound(client *Client) {
 			} else {
 				handleClientInput(client, string(buffer)[0:len(input) - 1], strlen - 1)
 			}
-		default:
-			continue
 		}
 	}
 }
