@@ -38,9 +38,9 @@ func (serv *Server) Listen() {
 
 func newServer() *Server {
 	serv := &Server{
-		Connection: make(chan net.Conn)
-		Incoming: make(chan *Message)
-		Outgoing: make(chan *Message)
+		Connection: make(chan net.Conn),
+		Incoming: make(chan *Message),
+//		Outgoing: make(chan *Message),
 	}
 
 	go serv.Listen()

@@ -2,34 +2,34 @@ package main
 
 import (
 	"net"
-	//"fmt"
+	"fmt"
 )
 
 func	newClient(conn net.Conn, serv *Server) (*Client, error) {
 	// handle authentication with the server, checking against previous clients and if the connection just needs to be updated
 
 	client := &Client{
-		true
-		"nickname"
-		"username"
-		"password"
-		conn
-		make(chan *Message)
-		make(chan *Message)
+		true,
+		"nickname",
+		"username",
+		"password",
+		conn,
+		make(chan *Message),
+		make(chan *Message),
 	}
 	go setClientInbound(client)
 	go setClientOutbound(client)
 
-	return (client, nil)
+	return client, nil
 }
 
 func	setClientInbound(client *Client) {
 	err := error(nil)
 	buffer := make([]byte, 512)
-
+	
 	for ; err == nil; {
 		select {
-		case strlen, err = conn.Read(buffer):
+		case strlen, err := conn.Read(buffer):
 			if (strlen > 512) {
 				err = sendMessageAlongConnection("ERROR: Message length was too long.\n", client.connection)
 			} else if (err != nil) {
