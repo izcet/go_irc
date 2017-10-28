@@ -26,18 +26,17 @@ func	newClient(conn net.Conn, serv *Server) (*Client, error) {
 func	setClientInbound(client *Client) {
 	err := error(nil)
 	buffer := make([]byte, 512)
-
+	var strlen int
 	for ; err == nil; {
-		strlen, err = conn.Read(buffer)
-			if (strlen <= 1) {
-				err = sendMessageAlongConnection("Error: Message length was too short.\n", client.connection)
-			} else if (strlen > 512) {
-				err = sendMessageAlongConnection("ERROR: Message length was too long.\n", client.connection)
-			} else if (err != nil) {
-				fmt.Println(err)
-			} else {
-				handleClientInput(client, string(buffer)[0:len(input) - 1], strlen - 1)
-			}
+		strlen, err = client.connection.Read(buffer)
+		if (strlen <= 1) {
+			err = sendMessageAlongConnection("Error: Message length was too short.\n", client.connection)
+		} else if (strlen > 512) {
+			err = sendMessageAlongConnection("ERROR: Message length was too long.\n", client.connection)
+		} else if (err != nil) {
+			fmt.Println(err)
+		} else {
+			handleClientInput(client, string(buffer)[0:len(buffer) - 1], strlen - 1)
 		}
 	}
 }
@@ -72,7 +71,7 @@ func	sendMessageToClient(msg *Message, client *Client) error {
 	if (msg.whisper) {
 		str = str + " whispered to you"
 	}
-	str = str + "] " + msg.Text
+	str = str + "] " + *msg.Text
 	return (sendMessageAlongConnection(str, client.connection))
 }
 
@@ -85,7 +84,7 @@ func	sendMessageAlongConnection(msg string, conn net.Conn) error {
 	return (err)
 }
 
-func	callCommand(client *client, input string, strlen int) error {
+func	callCommand(client *Client, input string, strlen int) error {
 	err := sendMessageAlongConnection("That's a command!\n", client.connection)
 	return (err)
 }
