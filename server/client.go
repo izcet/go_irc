@@ -114,23 +114,25 @@ func	handleClientInput(client *Client, input string, strlen int) {
 			}
 		}
 	}
-	fmt.Printf("Prefix: %s Cmd: %s Params: %q\n", prefix, cmd, params)
+	//fmt.Printf("Prefix: %s Cmd: %s Params: %q\n", prefix, cmd, params)
+	msg := makeMessage(client, prefix, cmd, params)
+	err = callCommand(msg)
 	if (err != nil) {
 		fmt.Println(err)
 	}
 }
 
-func	makeMessage(client *Client, input string) *Message {
-	msg := &Message{client, nil, false, &input}
+func	makeMessage(client *Client, prefix, cmd string, params []string) *Message {
+	msg := &Message{client, nil, prefix, cmd, params}
 	return (msg)
 }
 
 func	sendMessageToClient(msg *Message, client *Client) error {
 	str := "[" + string(msg.Sender.nickname)
-	if (msg.whisper) {
+	if (msg.cmd == "PRIVMSG" && msg.params[0] == client.nickname) {
 		str = str + " whispered to you"
 	}
-	str = str + "] " + *msg.Text
+	str = str + "] " + msg.params[1]
 	return (sendMessageAlongConnection(str, client.connection))
 }
 
@@ -139,8 +141,24 @@ func	sendMessageAlongConnection(msg string, conn net.Conn) error {
 	return (err)
 }
 
-func	callCommand(client *Client, input string, strlen int) error {
-	err := sendMessageAlongConnection("That's a command!\n", client.connection)
+func	callCommand(msg *Message) error {
+	err := error(nil)
+	if (msg.cmd == "PRIVMSG") {
+		if (len(msg.params) < 2) {
+			// Missing target/message
+			err = sendMessageAlongConnection("ERROR: Command missing parameters\n", msg.Sender.connection)
+		} else {
+			// TO-DO: Dispatch messages to target
+			fmt.Printf("Dest: %s Message: %q\n", msg.params[0], msg.params[1])
+		}
+	} else {
+		// TO-DO: Dispatch command
+		err = sendMessageAlongConnection("That's a command!\n", msg.Sender.connection)
+		fmt.Printf("cmd: %s params: %q\n", msg.cmd, msg.params)
+	}
+	if (err != nil) {
+		fmt.Println(err)
+	}
 	return (err)
 }
 

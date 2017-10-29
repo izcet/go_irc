@@ -52,9 +52,11 @@ type	Message struct {
 	Reciever	*Client // should be changed from a single client to a ChatRoom eventually
 	// unless we want to keep it, and figure out how to differentiate direct messages and global
 
-	whisper		bool
+	prefix		string
 
-	Text		*string // does this need to be a pointer?
+	cmd			string
+
+	params		[]string
 }
 
 type	ChatRoom struct {
