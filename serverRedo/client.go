@@ -66,6 +66,11 @@ func	handleClientInput(client *Client, input string, strlen int) {
 	}
 }
 
+func	makeMessage(client *Client, input string) *Message {
+	msg := &Message{client, nil, false, &input}
+	return (msg)
+}
+
 func	sendMessageToClient(msg *Message, client *Client) error {
 	str := "[" + string(msg.Sender.nickname)
 	if (msg.whisper) {
@@ -73,10 +78,6 @@ func	sendMessageToClient(msg *Message, client *Client) error {
 	}
 	str = str + "] " + *msg.Text
 	return (sendMessageAlongConnection(str, client.connection))
-}
-
-func	makeMessage(client *Client, input string) *Message {
-
 }
 
 func	sendMessageAlongConnection(msg string, conn net.Conn) error {
