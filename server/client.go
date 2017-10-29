@@ -46,7 +46,7 @@ func	setClientInbound(client *Client) {
 		} else if (err != nil) {
 			fmt.Println(err)
 		} else {
-			handleClientInput(client, string(buffer)[0:strlen], strlen)
+			handleClientInput(client, string(buffer)[0:len(buffer) - 1], strlen - 1)
 		}
 	}
 }
