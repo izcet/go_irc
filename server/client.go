@@ -35,10 +35,10 @@ func	setClientInbound(client *Client) {
 		} else if (strlen > 512) {
 			for {
 				// Throw out excess bytes
-				strlen, err = client.connection.Read(buffer)
 				if (strings.Index(string(buffer)[0:strlen], "\n") != -1) {
 					break
 				}
+				strlen, err = client.connection.Read(buffer)
 			}
 			err = sendMessageAlongConnection("ERROR: Message length was too long.\n", client.connection)
 		} else if (err != nil) {
@@ -74,7 +74,6 @@ func	handleClientInput(client *Client, input string, strlen int) {
 	}
 */
 	/**  OPTIONAL PREFIX **/
-	input = strings.TrimSuffix(input, "\r\n")
 	if (input[0] == ':') {
 		fields := strings.SplitN(input, " ", 2)
 		if (len(fields) < 2) {
