@@ -124,8 +124,8 @@ func	handleClientInput(client *Client, input string, strlen int) {
 	}
 }
 
-func	makeMessage(client *Client, prefix, cmd string, params []string) *Message {
-	msg := &Message{client, nil, prefix, cmd, params}
+func	makeMessage(client *Client, text string) *Message {
+	msg := &Message{client, nil, false, text}
 	return (msg)
 }
 

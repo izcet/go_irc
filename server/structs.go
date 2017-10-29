@@ -18,11 +18,9 @@ type	Client struct {
 	username	string
 	password	string
 	connection	net.Conn
-	
 	Incoming	chan *Message
 	// data sent from client terminal to the server
 	// messages/commands sent BY the user
-
 	Outgoing	chan *Message
 	// data to be sent to the client along the channel
 	// messages sent TO the user
@@ -33,8 +31,9 @@ type	Message struct {
 	Sender		*Client
 	Reciever	*Client // should be changed from a single client to a ChatRoom eventually
 	// unless we want to keep it, and figure out how to differentiate direct messages and global
-	whisper		bool
-	Text		*string // does this need to be a pointer?
+	prefix		string
+	cmd			string
+	params		[]string
 }
 
 type	ChatRoom struct {
