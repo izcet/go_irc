@@ -7,8 +7,10 @@ import (
 )
 
 func	newClient(conn net.Conn, serv *Server) (*Client, error) {
+	// TODO:
 	// handle authentication with the server, checking against previous clients and if the connection just needs to be updated
 
+	// TODO: update this struct with relevant values for nick, user, pass
 	client := &Client{
 		true,
 		"nickname",
