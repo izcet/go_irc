@@ -3,130 +3,90 @@ package main
 import (
 	"net"
 	"fmt"
-//	"strings"
-//	"strconv"
 )
 
-type	User struct {
-	IDNumber	int
-	nickname	string
-	password	string //unused right now
-	active		bool
-	conn		net.Conn
-	inbox		chan *Message
+func	newClient(conn net.Conn, serv *Server) (*Client, error) {
+	// handle authentication with the server, checking against previous clients and if the connection just needs to be updated
+
+	client := &Client{
+		true,
+		"nickname",
+		"username",
+		"password",
+		conn,
+		make(chan *Message),
+		make(chan *Message),
+	}
+	go setClientInbound(client)
+	go setClientOutbound(client)
+
+	return client, nil
 }
 
-type	Message struct {
-	sender		User
-	reciever	[]User
-	text		string
-}
-
-func	handleClient(conn net.Conn, num int) {
-
-	fmt.Println("(client", num, "connected)")
-	defer fmt.Println("(client", num, "disconnected)")//nice logging messages
-	defer conn.Close()//nice cleanup
-
-	var buffer = make([]byte, NUM_BYTES)//
-
-	strlen, err := conn.Write([]byte("Welcome! What is your name?\n"))
-	strlen, err = conn.Read(buffer)
-	if (err != nil) {
-		fmt.Println("(client", num, "can't type their own name)")
-		return
-	}
-	name := string(buffer)[:strlen - 1]
-	strlen, err = conn.Write([]byte("Welcome [" + name + "], type /help for a list of commands.\n"))
-	if (err != nil) {
-		fmt.Println("(client", num, "didn't get the welcome message)")
-		return
-	}
-
-	//set up a user with a name and a pointer to a message struct channel
-	user := User{num, name, "", true, conn, make(chan *Message, 512)}
-
-	activeUsers[num] = user //keep track of users in global
-	go clientListen(user)
-	makeMessage(0, string(user.nickname + " has joined the server"))
-	defer ClientClose(user) // in case the server shuts down before the client is closed
-
+func	setClientInbound(client *Client) {
+	err := error(nil)
+	buffer := make([]byte, 512)
+	var strlen int
 	for ; err == nil; {
-
-		//bzero is hard to find
-		for i, _ := range buffer {
-			buffer[i] = 0
-		}
-
-		//take the message from the client
-		strlen, err = conn.Read(buffer)
-		if (err != nil) {
-			break
-		}
-		if (strlen != 0) && (strlen < 512) {
-			str := string(buffer)
-			str = str[:strlen - 1]
-			if (str == "/stop") {
-				server_dead = 1
-				makeMessage(0, string(user.nickname + " shut down the server"))
-				break
-			} else if (str == "/help") {
-				sendToClient(conn, "== COMMAND HELP ==\n/help | get help, because you need it\n/kick <name> | kick a person, because they need it\n/list | get a list of online users, so you know who to harass\n/nick <name> | change your name, because your parents weren't clever enough\n/stop | kill the server, because you need to stop\n== NO MORE HELP ==\n")
-			} else if (str == "/list") {
-				sendToClient(conn, "(a listing of online users)\n")
-			} else if (len(str) > 5) && (str[0:6] == "/nick ") {
-				sendToClient(conn, "(nickname changed to " + str[6:] + ")\n")
-			} else if (len(str) > 5) && (str[0:6] == "/kick ") {
-				sendToClient(conn, "(kicked user " + str[6:] + ")\n")
-			} else {
-				makeMessage(num, str)
-			}
+		strlen, err = client.connection.Read(buffer)
+		if (strlen <= 1) {
+			err = sendMessageAlongConnection("Error: Message length was too short.\n", client.connection)
+		} else if (strlen > 512) {
+			err = sendMessageAlongConnection("ERROR: Message length was too long.\n", client.connection)
+		} else if (err != nil) {
+			fmt.Println(err)
+		} else {
+			handleClientInput(client, string(buffer)[0:len(buffer) - 1], strlen - 1)
 		}
 	}
-
-	user.active = false
-	makeMessage(0, string(user.nickname + " has disconnected"))
 }
 
-func	clientListen(user User) {
-	for ; user.active; {
+func	setClientOutbound(client *Client) {
+	err := error(nil)
+	for ; err == nil ; {
 		select {
-		case msg := <-user.inbox:
-			if (user.active) {
-				var str string
-				if (msg.sender.IDNumber == 0) {
-					str = "<" + msg.text + ">\n"
-				} else {
-				str = "[" + msg.sender.nickname + "] " + msg.text + "\n"
-				}
-				user.conn.Write([]byte(str))
-			}
+		case msg := <-client.Outgoing:
+			err = sendMessageToClient(msg, client)
 		default:
 			continue
 		}
 	}
 }
 
-func	sendToClient(conn net.Conn, str string) {
-	conn.Write([]byte(str))
-}
-
-func	ClientClose(user User) {
-	if (user.active) {
-		user.conn.Write([]byte("The server hias been shut down.\n"))
-		user.active = false
+func	handleClientInput(client *Client, input string, strlen int) {
+	err := error(nil)
+	if (input[0] == '/') {
+		err = callCommand(client, input, strlen)
+	} else {
+		msg := makeMessage(client, input)
+		client.Incoming <-msg
+	}
+	if (err != nil) {
+		fmt.Println(err)
 	}
 }
 
-func	makeMessage(user int, text string) {
-	fmt.Println("[", user, "] [", text, "]")
-	msg := &Message{activeUsers[user], nil, text}
-	select {
-	case serverMessages <-msg:
-		return
-		// fmt.Println("Sent message to server")
-	default:
-		fmt.Println("No message sent")
+func	makeMessage(client *Client, input string) *Message {
+	msg := &Message{client, nil, false, &input}
+	return (msg)
+}
+
+func	sendMessageToClient(msg *Message, client *Client) error {
+	str := "[" + string(msg.Sender.nickname)
+	if (msg.whisper) {
+		str = str + " whispered to you"
 	}
+	str = str + "] " + *msg.Text
+	return (sendMessageAlongConnection(str, client.connection))
+}
+
+func	sendMessageAlongConnection(msg string, conn net.Conn) error {
+	_, err := conn.Write([]byte(msg))
+	return (err)
+}
+
+func	callCommand(client *Client, input string, strlen int) error {
+	err := sendMessageAlongConnection("That's a command!\n", client.connection)
+	return (err)
 }
 
