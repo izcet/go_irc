@@ -26,9 +26,6 @@ type	Client struct {
 	Incoming	chan *Message
 	// data sent from client terminal to the server
 	// messages/commands sent BY the user
-	Outgoing	chan *Message
-	// data to be sent to the client along the channel
-	// messages sent TO the user
 }
 
 type	Message struct {

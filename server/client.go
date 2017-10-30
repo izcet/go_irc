@@ -44,19 +44,7 @@ func	setClientInbound(client *Client, serv *Server) {
 		} else if (err != nil) {
 			fmt.Println(err)
 		} else {
-			handleClientInput(client, string(buffer)[0:len(buffer) - 1], strlen - 1)
-		}
-	}
-}
-
-func	setClientOutbound(client *Client) {
-	err := error(nil)
-	for ; err == nil ; {
-		select {
-		case msg := <-client.Outgoing:
-			err = sendMessageToClient(msg, client)
-		default:
-			continue
+			handleClientInput(client, serv, string(buffer)[0:strlen], strlen)
 		}
 	}
 }
