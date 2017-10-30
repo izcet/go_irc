@@ -16,22 +16,20 @@ func	newClient(conn net.Conn, serv *Server) (*Client, error) {
 		"password",
 		conn,
 		make(chan *Message),
-		make(chan *Message),
 	}
-	go setClientInbound(client)
-	go setClientOutbound(client)
+	go setClientInbound(client, serv)
 
 	return client, nil
 }
 
-func	setClientInbound(client *Client) {
+func	setClientInbound(client *Client, serv *Server) {
 	err := error(nil)
 	buffer := make([]byte, 513)
 	var strlen int
 	for ; err == nil; {
 		strlen, err = client.connection.Read(buffer)
 		if (strlen <= 1) {
-			err = sendMessageAlongConnection("Error: Message length was too short.\n", client.connection)
+			err = sendMessageAlongConnection("ERROR", "Message length was too short.\n", client.connection)
 		} else if (strlen > 512) {
 			for {
 				// Throw out excess bytes
@@ -40,41 +38,22 @@ func	setClientInbound(client *Client) {
 				}
 				strlen, err = client.connection.Read(buffer)
 			}
-			err = sendMessageAlongConnection("ERROR: Message length was too long.\n", client.connection)
+			err = sendMessageAlongConnection("ERROR", "Message length was too long.\n", client.connection)
 		} else if (err != nil) {
 			fmt.Println(err)
 		} else {
-			handleClientInput(client, string(buffer)[0:strlen], strlen)
+			handleClientInput(client, serv, string(buffer)[0:strlen], strlen)
 		}
 	}
 }
 
-func	setClientOutbound(client *Client) {
-	err := error(nil)
-	for ; err == nil ; {
-		select {
-		case msg := <-client.Outgoing:
-			err = sendMessageToClient(msg, client)
-		default:
-			continue
-		}
-	}
-}
-
-func	handleClientInput(client *Client, input string, strlen int) {
+func	handleClientInput(client *Client, serv *Server, input string, strlen int) {
 	var prefix, cmd string
 	var params []string
 	err := error(nil)
-/*
-	if (input[0] == '/') {
-		err = callCommand(client, input, strlen)
-	} else {
-		msg := makeMessage(client, input)
-		client.Incoming <-msg
-	}
-*/
+	input = strings.TrimSuffix(input, "\r\n")	
 	/**  OPTIONAL PREFIX **/
-	if (input[0] == ':') {
+	if (len(input) > 1 && input[0] == ':') {
 		fields := strings.SplitN(input, " ", 2)
 		if (len(fields) < 2) {
 			// Incomplete input
@@ -99,7 +78,7 @@ func	handleClientInput(client *Client, input string, strlen int) {
 	if (len(fields) > 1) {
 		input = strings.TrimLeft(fields[1], " ")
 		for {
-			if (input[0] == ':') {
+			if (len(input) > 1 && input[0] == ':') {
 				// Message
 				params = append(params, input[1:])
 				break
@@ -116,44 +95,103 @@ func	handleClientInput(client *Client, input string, strlen int) {
 	}
 	//fmt.Printf("Prefix: %s Cmd: %s Params: %q\n", prefix, cmd, params)
 	msg := makeMessage(client, prefix, cmd, params)
-	err = callCommand(msg)
+	err = callCommand(msg, serv)
 	if (err != nil) {
 		fmt.Println(err)
 	}
 }
 
 func	makeMessage(client *Client, prefix, cmd string, params []string) *Message {
-	msg := &Message{client, nil, prefix, cmd, params}
+	msg := &Message{client, prefix, cmd, params}
 	return (msg)
 }
 
-func	sendMessageToClient(msg *Message, client *Client) error {
-	str := "[" + string(msg.Sender.nickname)
-	if (msg.cmd == "PRIVMSG" && msg.params[0] == client.nickname) {
-		str = str + " whispered to you"
-	}
-	str = str + "] " + msg.params[1]
-	return (sendMessageAlongConnection(str, client.connection))
-}
-
-func	sendMessageAlongConnection(msg string, conn net.Conn) error {
-	_, err := conn.Write([]byte(msg))
+func	sendMessageAlongConnection(cmd, msg string, conn net.Conn) error {
+	addr := conn.LocalAddr.String()
+	out := ":" + addr + " " + cmd + " :" + msg + "\r\n"
+	_, err := conn.Write([]byte(out))
 	return (err)
 }
 
-func	callCommand(msg *Message) error {
+func	findRoom(Rooms []*ChatRoom, name string) *ChatRoom {
+	var	room *ChatRoom
+	for _, v := range Rooms {
+		if (v.name == name) {
+			room = v;
+			break
+		}
+	}
+	return (room)
+}
+
+func	findInRoom(room *ChatRoom, nick string) bool {
+	inRoom := false
+	for _, v := range room.Clients {
+		if (v.nickname == nick) {
+			inRoom = true
+		}
+	}
+	return (inRoom)
+}
+
+func partRoom(clients []*Client, nick string) []*Client {
+    for i, v := range clients {
+        if v.nickname == nick {
+            return append(clients[:i], clients[i+1:]...)
+        }
+    }
+    return clients
+}
+
+func	callCommand(msg *Message, serv *Server) error {
 	err := error(nil)
 	if (msg.cmd == "PRIVMSG") {
 		if (len(msg.params) < 2) {
 			// Missing target/message
-			err = sendMessageAlongConnection("ERROR: Command missing parameters\n", msg.Sender.connection)
-		} else {
-			// TO-DO: Dispatch messages to target
-			fmt.Printf("Dest: %s Message: %q\n", msg.params[0], msg.params[1])
+			err = sendMessageAlongConnection("ERROR", "Command missing parameters", msg.Sender.connection)
+			return (err)
 		}
+		// TO-DO: Dispatch messages to target
+		fmt.Printf("Dest: %s Message: %q\n", msg.params[0], msg.params[1])
+	} else if (msg.cmd == "JOIN") {
+		if (len(msg.params) < 1 || msg.params[0][0] != '#') {
+			err = sendMessageAlongConnection("ERROR", "usage: /join #channel\n", msg.Sender.connection)
+			return (err)
+		}
+		room := findRoom(serv.Rooms, msg.params[0])
+		if (room != nil) {
+			inRoom := findInRoom(room, msg.Sender.nickname)
+			if (inRoom) {
+				err = sendMessageAlongConnection("ERROR", "Already in channel\n", msg.Sender.connection)
+				return (err)
+			}
+		} else {
+			room = &ChatRoom{ nil, nil, msg.params[0], ""}
+			room.Admins = append(room.Admins, msg.Sender)
+			serv.Rooms = append(serv.Rooms, room)
+			fmt.Printf("%s created channel %s\n", msg.Sender.nickname, room.name)
+		}
+		fmt.Printf("%s joined channel %s\n", msg.Sender.nickname, room.name)
+		room.Clients = append(room.Clients, msg.Sender)
+	} else if (msg.cmd == "PART") {
+		if (len(msg.params) < 1 || msg.params[0][0] != '#') {
+			err = sendMessageAlongConnection("ERROR", "usage: /part #channel\n", msg.Sender.connection)
+			return (err)
+		}
+		room := findRoom(serv.Rooms, msg.params[0])
+		inRoom := false
+		if (room != nil) {
+			inRoom = findInRoom(room, msg.Sender.nickname)
+		}
+		if (room == nil || !inRoom) {
+			err = sendMessageAlongConnection("ERROR", "Not in channel " + msg.params[0] + "\n", msg.Sender.connection)
+			return (err)
+		}
+		room.Clients = partRoom(room.Clients, msg.Sender.nickname)
+		err = sendMessageAlongConnection("PRIVMSG", "You left " + room.name + "\n", msg.Sender.connection)
 	} else {
 		// TO-DO: Dispatch command
-		err = sendMessageAlongConnection("That's a command!\n", msg.Sender.connection)
+		err = sendMessageAlongConnection("PRIVMSG", "That's a command!\n", msg.Sender.connection)
 		fmt.Printf("cmd: %s params: %q\n", msg.cmd, msg.params)
 	}
 	if (err != nil) {

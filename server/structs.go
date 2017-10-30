@@ -13,10 +13,7 @@ type	Server struct {
 
 	Connection	chan net.Conn
 	// not sure how you're handling this but I'll let you do it and explain it when it works
-
-	Incoming	chan *Message
-	// messages sent TO the server to be redistributed as necesssary
-	// is this necessary?
+	Rooms		[]*ChatRoom
 }
 
 type	Client struct {
@@ -24,7 +21,6 @@ type	Client struct {
 	isActive	bool
 	// wether the user is currently connected or not
 	// can also be used for "AWAY" functionality maybe?
-
 
 	nickname	string
 	// what is displayed to other users
@@ -39,23 +35,12 @@ type	Client struct {
 	Incoming	chan *Message
 	// data sent from client terminal to the server
 	// messages/commands sent BY the user
-
-	Outgoing	chan *Message
-	// data to be sent to the client along the channel
-	// messages sent TO the user
 }
 
 type	Message struct {
-
 	Sender		*Client
-
-	Reciever	*Client // should be changed from a single client to a ChatRoom eventually
-	// unless we want to keep it, and figure out how to differentiate direct messages and global
-
 	prefix		string
-
 	cmd			string
-
 	params		[]string
 }
 
@@ -66,7 +51,7 @@ type	ChatRoom struct {
 	Clients		[]*Client
 	// all the users currently in the channel
 
-	Admin		*Client
+	Admins		[]*Client
 	// the moderator of the channel
 
 	name		string
