@@ -31,7 +31,7 @@ func	setClientInbound(client *Client, serv *Server) {
 	for ; err == nil; {
 		strlen, err = client.connection.Read(buffer)
 		if (strlen <= 1) {
-			err = sendMessageAlongConnection("ERROR", "Message length was too short.\n", client.connection)
+			err = sendServerResponse("ERROR", "Message length was too short.\n", client.connection)
 		} else if (strlen > 512) {
 			for {
 				// Throw out excess bytes
@@ -40,7 +40,7 @@ func	setClientInbound(client *Client, serv *Server) {
 				}
 				strlen, err = client.connection.Read(buffer)
 			}
-			err = sendMessageAlongConnection("ERROR", "Message length was too long.\n", client.connection)
+			err = sendServerResponse("ERROR", "Message length was too long.\n", client.connection)
 		} else if (err != nil) {
 			fmt.Println(err)
 		} else {
@@ -108,11 +108,32 @@ func	makeMessage(client *Client, prefix, cmd string, params []string) *Message {
 	return (msg)
 }
 
-func	sendMessageAlongConnection(cmd, msg string, conn net.Conn) error {
-	addr := conn.LocalAddr.String()
-	out := ":" + addr + " " + cmd + " :" + msg + "\r\n"
+func	sendMessageAlongConnection(prefix, cmd, msg string, conn net.Conn) error {
+	var out string
+	if (len(prefix) > 0) {
+		out += ":"
+	}
+	out += prefix + " " + cmd + " :" + msg + "\r\n"
 	_, err := conn.Write([]byte(out))
 	return (err)
+}
+
+func	sendServerResponse(cmd, msg string, conn net.Conn) error {
+	addr := conn.LocalAddr().String()
+	return (sendMessageAlongConnection(addr, cmd, msg, conn))
+}
+
+func	sendToRoom(exclude, prefix, cmd, msg string, room *ChatRoom) {
+	for _, v := range room.Clients {
+		if (v.nickname != exclude) {
+			sendMessageAlongConnection(prefix, cmd, msg, v.connection)
+		}
+	}
+}
+
+func	sendServerResponseRoom(exclude, cmd, msg string, room *ChatRoom, conn net.Conn) {
+	addr := conn.LocalAddr().String()
+	sendToRoom(exclude, addr, cmd, msg, room)
 }
 
 func	findRoom(Rooms []*ChatRoom, name string) *ChatRoom {
@@ -150,21 +171,21 @@ func	callCommand(msg *Message, serv *Server) error {
 	if (msg.cmd == "PRIVMSG") {
 		if (len(msg.params) < 2) {
 			// Missing target/message
-			err = sendMessageAlongConnection("ERROR", "Command missing parameters", msg.Sender.connection)
+			err = sendServerResponse("ERROR", "Command missing parameters", msg.Sender.connection)
 			return (err)
 		}
 		// TO-DO: Dispatch messages to target
 		fmt.Printf("Dest: %s Message: %q\n", msg.params[0], msg.params[1])
 	} else if (msg.cmd == "JOIN") {
 		if (len(msg.params) < 1 || msg.params[0][0] != '#') {
-			err = sendMessageAlongConnection("ERROR", "usage: /join #channel\n", msg.Sender.connection)
+			err = sendServerResponse("ERROR", "usage: /join #channel\n", msg.Sender.connection)
 			return (err)
 		}
 		room := findRoom(serv.Rooms, msg.params[0])
 		if (room != nil) {
 			inRoom := findInRoom(room, msg.Sender.nickname)
 			if (inRoom) {
-				err = sendMessageAlongConnection("ERROR", "Already in channel\n", msg.Sender.connection)
+				err = sendServerResponse("ERROR", "Already in channel\n", msg.Sender.connection)
 				return (err)
 			}
 		} else {
@@ -174,10 +195,11 @@ func	callCommand(msg *Message, serv *Server) error {
 			fmt.Printf("%s created channel %s\n", msg.Sender.nickname, room.name)
 		}
 		fmt.Printf("%s joined channel %s\n", msg.Sender.nickname, room.name)
+		sendServerResponseRoom(msg.Sender.nickname, "PRIVMSG", msg.Sender.nickname + " has joined the channel.", room, msg.Sender.connection)
 		room.Clients = append(room.Clients, msg.Sender)
 	} else if (msg.cmd == "PART") {
 		if (len(msg.params) < 1 || msg.params[0][0] != '#') {
-			err = sendMessageAlongConnection("ERROR", "usage: /part #channel\n", msg.Sender.connection)
+			err = sendServerResponse("ERROR", "usage: /part #channel\n", msg.Sender.connection)
 			return (err)
 		}
 		room := findRoom(serv.Rooms, msg.params[0])
@@ -186,15 +208,14 @@ func	callCommand(msg *Message, serv *Server) error {
 			inRoom = findInRoom(room, msg.Sender.nickname)
 		}
 		if (room == nil || !inRoom) {
-			err = sendMessageAlongConnection("ERROR", "Not in channel " + msg.params[0] + "\n", msg.Sender.connection)
+			err = sendServerResponse("ERROR", "Not in channel " + msg.params[0] + "\n", msg.Sender.connection)
 			return (err)
 		}
 		room.Clients = partRoom(room.Clients, msg.Sender.nickname)
-		err = sendMessageAlongConnection("PRIVMSG", "You left " + room.name + "\n", msg.Sender.connection)
+		err = sendServerResponse("PRIVMSG", "You left " + room.name + "\n", msg.Sender.connection)
 	} else {
 		// TO-DO: Dispatch command
-		err = sendMessageAlongConnection("PRIVMSG", "That's a command!\n", msg.Sender.connection)
-		fmt.Printf("cmd: %s params: %q\n", msg.cmd, msg.params)
+		err = sendServerResponse("ERROR", "Unknown command", msg.Sender.connection)
 	}
 	if (err != nil) {
 		fmt.Println(err)
