@@ -1,12 +1,10 @@
 package main
 
-import(
+import (
 	"net"
-	//"fmt"
 )
 
 type	Server struct {
-
 	Clients		[]*Client
 	// list of all clients ever connected to the server
 	// includes not active users
@@ -17,24 +15,20 @@ type	Server struct {
 }
 
 type	Client struct {
-
 	isActive	bool
 	// wether the user is currently connected or not
 	// can also be used for "AWAY" functionality maybe?
 
 	nickname	string
-	// what is displayed to other users
-
 	username	string
 	password	string
-	// what is used for authentication
-
 	connection	net.Conn
-	// connection to a single user, for sending/recieving data messages
-
 	Incoming	chan *Message
 	// data sent from client terminal to the server
 	// messages/commands sent BY the user
+	Outgoing	chan *Message
+	// data to be sent to the client along the channel
+	// messages sent TO the user
 }
 
 type	Message struct {
@@ -47,13 +41,10 @@ type	Message struct {
 type	ChatRoom struct {
 	// acts like an IRC or Slack channel
 	// not to be confused with channels (the Go data structure)
-
 	Clients		[]*Client
 	// all the users currently in the channel
-
 	Admins		[]*Client
 	// the moderator of the channel
-
 	name		string
 	description	string
 	// pretty self explanatory

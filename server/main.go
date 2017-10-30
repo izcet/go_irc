@@ -13,6 +13,7 @@ func main() {
 		return
 	}
 	defer listener.Close()
+	fmt.Println("Server listening on", listener.Addr())
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

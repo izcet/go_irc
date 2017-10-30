@@ -7,8 +7,10 @@ import (
 )
 
 func	newClient(conn net.Conn, serv *Server) (*Client, error) {
+	// TODO:
 	// handle authentication with the server, checking against previous clients and if the connection just needs to be updated
 
+	// TODO: update this struct with relevant values for nick, user, pass
 	client := &Client{
 		true,
 		"nickname",
@@ -42,7 +44,19 @@ func	setClientInbound(client *Client, serv *Server) {
 		} else if (err != nil) {
 			fmt.Println(err)
 		} else {
-			handleClientInput(client, serv, string(buffer)[0:strlen], strlen)
+			handleClientInput(client, string(buffer)[0:len(buffer) - 1], strlen - 1)
+		}
+	}
+}
+
+func	setClientOutbound(client *Client) {
+	err := error(nil)
+	for ; err == nil ; {
+		select {
+		case msg := <-client.Outgoing:
+			err = sendMessageToClient(msg, client)
+		default:
+			continue
 		}
 	}
 }
